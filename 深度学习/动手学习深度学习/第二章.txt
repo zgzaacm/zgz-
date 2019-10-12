@@ -1,0 +1,45 @@
+1.from mxnet import nd
+
+新学的：
+X.norm() L2范数
+X.asscalar() 转为标量
+X.zeros_like() 制造一个跟X大小相同的矩阵
+nd.random.normal(scale=0.1, shape=labels.shape)
+每次运算会使用新地址，改变这种情况：
+id 取地址
+Z = Y.zeros_like()
+before = id(Z)
+Z[:] = X + Y
+id(Z) == before
+或者
+nd.elemwise_add(X, Y, out=Z)
+id(Z) == before
+或者
+X += Y 
+
+可以与numpy转换 使用matplotlib经常要用
+.asnumpy()
+
+把x的n次多项式 当做n个输入的向量 用concat连接
+nd.concat(features, nd.power(features, 2),nd.power(features, 3))
+
+2.from mxnet import autograd, nd 求梯度
+
+ 一 基本使用
+ 1.假设以X为变量 先调用attach_grad函数来申请存储梯度所需要内存。
+   x.attach_grad()
+ 2.定义函数 使用autograd.record()记录
+ #如果y不是一个标量，MXNet将默认先对y中元素求和得到新的变量，再求该变量有关x的梯度。
+ with autograd.record():
+    y = 2 * nd.dot(x.T, x)
+ 3.y.backward() 求梯度
+ 4.x.grad 获得梯度
+
+ 二调用record函数后会转为训练模式
+ 通过autograd.is_training()查看
+（以后判断是否使用dropout要用）
+
+ 三 niubility 就算含有循环和条件（控制流） 也可以求梯度
+ 需要强调的是，这里循环（while循环）迭代的次数和条件判断（if语句）
+ 的执行都取决于输入的值。
+

@@ -1,0 +1,100 @@
+1.import time
+start = time()
+
+time()-start 就能算出总时间
+
+2.向量运算真的很快
+
+3.画图时别忘记.asnumpy()
+
+作图前只需要调用d2lzh.set_figsize()即可打印矢量图并设置图的尺寸。
+
+4 小批量选取数据集
+# 本函数已保存在d2lzh包中方便以后使用
+def data_iter(batch_size, features, labels):
+    num_examples = len(features)
+    indices = list(range(num_examples))
+    random.shuffle(indices)  # 样本的读取顺序是随机的
+    for i in range(0, num_examples, batch_size):
+        j = nd.array(indices[i: min(i + batch_size, num_examples)])
+        yield features.take(j), labels.take(j)  # take函数根据索引返回对应元素
+
+5.训练模型
+
+初始化-梯度-定义模型-定义损失函数-定义优化算法sgd-训练模型：
+
+def sgd(params, lr, batch_size):  # 本函数已保存在d2lzh包中方便以后使用
+    for param in params:
+        param[:] = param - lr * param.grad / batch_size
+
+lr = 0.03 学习率
+num_epochs = 10 （迭代周期的个数）
+net = linreg 选择模型函数
+loss = squared_loss 选择损失函数
+
+for epoch in range(num_epochs):  # 训练模型一共需要num_epochs个迭代周期
+    # 在每一个迭代周期中，会使用训练数据集中所有样本一次（假设样本数能够被批量大小整除）。X
+    # 和y分别是小批量样本的特征和标签
+    for X, y in data_iter(batch_size, features, labels):
+        with autograd.record():
+            l = loss(net(X, w, b), y)  # l是有关小批量X和y的损失
+        l.backward()  # 小批量的损失对模型参数求梯度
+        sgd([w, b], lr, batch_size)  # 使用小批量随机梯度下降迭代模型参数
+    train_l = loss(net(features, w, b), labels)
+    print('epoch %d, loss %f' % (epoch + 1, train_l.mean().asnumpy()))
+
+5 简洁实现
+
+使用mxnet.gluon包
+from mxnet.gluon import data as gdata
+gdata.ArrayDataset(X, Y) #结合XY
+gdata.DataLoader(XY结合（dataset）, batch_size, shuffle=True)#随机读取小批量
+得到一个可迭代的生成器 与4使用方法一样
+
+Gluon提供了大量预定义的层，这使我们只需关注使用哪些层来构造模型。
+
+导入nn模块。实际上，“nn”是neural networks（神经网络）的缩写。
+我们先定义一个模型变量net，它是一个Sequential实例。
+在Gluon中，Sequential实例可以看作是一个串联各个层的容器。
+
+from mxnet.gluon import nn
+net = nn.Sequential()
+net.add(nn.Dense(1))# 全连接层 输出个数为1 无需指定输入层
+
+初始化模型参数
+在使用net前，我们需要初始化模型参数，
+如线性回归模型中的权重和偏差。我们从MXNet导入init模块。
+from mxnet import init
+net.initialize(init.Normal(sigma=0.01))
+（其实只有sigma这一个参数 均值一定为0）
+
+常用：
+init.One initialize weights to one.
+Zero
+init.Orthogonal Initialize weight as orthogonal matrix.
+
+init.Constant Initializes the weights to a given value.
+输入数或者数组
+
+# 指定权重参数每个元素将在初始化时随机
+采样于均值为0、标准差为0.01的正态分布。偏差参数默认会初始化为零。
+
+损失函数： gluon的loss
+from mxnet.gluon import loss as gloss
+
+loss = gloss.L2Loss()  # 平方损失又称L2范数损失
+
+优化算法
+from mxnet import gluon
+# 该优化算法将用来迭代net实例所有通过add函数嵌套的层所包含的全部参数。
+trainer = gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': 0.03})
+
+注意！--损失函数返回的是向量 
+执行l.backward()等价于执行l.sum().backward() 没有除n
+
+trainer.step(batch_size)指明批量的大小 从而对批量中求样本梯度平均
+
+#访问参数
+dense = net[0]
+true_w, dense.weight.data()
+true_b, dense.bias.data()（。grad()得到梯度）
